@@ -110,7 +110,7 @@
   <div class="container">
     <h1>Thank You for Your Enquiry</h1>
     <p>We’ve received your details and will be in touch shortly.</p>
-    <p>To book your consultation, you’ll be redirected to our Calendly page.</p>
+    <p>To book your consultation, you’ll be redirected shortly.</p>
 
     <div class="countdown">Redirecting in <span id="timer">8</span> seconds…</div>
     <div class="progress-bar"><div class="progress" id="progress"></div></div>
@@ -124,9 +124,9 @@
     const email = urlParams.get("email") || "";
     const business = urlParams.get("business") || "";
 
-const calendlyUrl = `https://calendly.com/andrew-crutchley-magnamoney/30min?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}&customAnswers[0]=${encodeURIComponent(business)}`;
+    const hubspotUrl = `https://meetings.hubspot.com/andrew-crutchley?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}&business=${encodeURIComponent(business)}`;
 
-    document.getElementById("bookBtn").href = calendlyUrl;
+    document.getElementById("bookBtn").href = hubspotUrl;
 
     let seconds = 8;
     const timerEl = document.getElementById("timer");
@@ -142,7 +142,7 @@ const calendlyUrl = `https://calendly.com/andrew-crutchley-magnamoney/30min?name
         clearInterval(countdown);
         document.body.style.animation = "fadeOut 0.8s forwards";
         setTimeout(() => {
-          window.location.href = calendlyUrl;
+          window.location.href = hubspotUrl;
         }, 800);
       }
     }, 1000);
