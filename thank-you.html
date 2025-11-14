@@ -95,9 +95,9 @@
     </div>
   </div>
 
- <script>
+  <script>
   // CONFIG
-  const SCRIPT_EXEC_URL = 'https://script.google.com/macros/s/AKfycbwWlXvC_Oh88e5XqtCPrRLHexZrpzXqDcaPi4nLVkasv0DlNmNy3Je_bQaIE8IJPxT1/exec';
+  const SCRIPT_EXEC_URL = 'https://script.google.com/macros/s/AKfycbw1LfiW2XLIokyvXQs7zRVbqXtzZ4zrOzewIrpPjNuPm93QSPzCAAtu9E7BviMEgO5h/exec';
   const HUBSPOT_MEETINGS = 'https://meetings.hubspot.com/andrew-crutchley';
 
   // helper: read query param
@@ -145,7 +145,7 @@
         script.src = SCRIPT_EXEC_URL + '?sid=' + encodeURIComponent(sid) + '&callback=__magna_prefill_cb';
         script.onerror = function(){ console.warn('JSONP load error'); };
         document.body.appendChild(script);
-        // small safety: after 3s try to pick up prefill if callback already fired
+        // small safety: after 1.2s try to pick up prefill if callback already fired
         setTimeout(()=> { prefillUrl = window.__magna_prefill_cb && window.__magna_prefill_cb.prefillUrl; }, 1200);
       } catch (e) {
         console.warn('Prefill JSONP error', e);
@@ -182,8 +182,6 @@
     if (manualEl) manualEl.addEventListener('click', manualClick);
     // also keep body click-to-skip behaviour
     document.body.addEventListener('click', ()=> {
-      // avoid immediately firing when the user clicks form controls — only jump if they click empty space or the manual link
-      // if they click the manual link the handler above will run first
       const target = (window.__magna_prefill_cb && window.__magna_prefill_cb.prefillUrl) || HUBSPOT_MEETINGS;
       window.location.href = target;
     });
@@ -191,7 +189,6 @@
     // start countdown
     tick();
   })();
-</script>
-
+  </script>
 </body>
 </html>
