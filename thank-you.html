@@ -60,6 +60,9 @@
     .contact-block { margin-top:16px; font-size:14px; line-height:1.5; color:var(--text-main); font-weight:400; }
     .footer-line { margin-top:24px; font-size:13px; line-height:1.4; color:var(--text-faint); }
 
+    .user-info { margin-top:12px; color:var(--text-dim); font-size:14px; }
+    .manual-link { margin-top:14px; display:inline-block; background:var(--gold); color:var(--charcoal); padding:10px 14px; border-radius:8px; font-weight:700; text-decoration:none; }
+
     @media (max-width:640px){ .thanks-headline{ font-size:18px; } .thanks-body{ font-size:14px; } }
   </style>
 </head>
@@ -78,9 +81,11 @@
         Your details have been submitted securely. I’ll review everything and come back to you quickly with next steps.
       </div>
 
+      <div id="userInfo" class="user-info" aria-live="polite"></div>
+
       <div class="progress-wrap">
         <div class="progress-bar" aria-hidden="true"><div id="progressFill" class="progress-fill"></div></div>
-        <div id="countdownText" class="countdown">Redirecting to book a time in <strong>8</strong> seconds…</div>
+        <div id="countdownText" class="countdown">Redirecting to book a time in <strong id="countNum">8</strong> seconds…</div>
       </div>
 
       <div class="contact-block">
@@ -91,104 +96,111 @@
         <div>www.magnamoney.co.uk</div>
       </div>
 
+      <a id="manualLink" class="manual-link" href="#" role="button" style="display:none;">Go to booking now</a>
+
       <div class="footer-line">Magna Money is a trading style of Sedulo Funding Solutions Ltd (10276541).</div>
     </div>
   </div>
 
   <script>
-  // CONFIG
-  const SCRIPT_EXEC_URL = 'https://script.google.com/macros/s/AKfycby8Zv4WLTcElTcQjKHVcVORIQ8m5t5-5OXpJkxMuA0O6E8DCAV2iQIbqwHF6OwfvpFB/exec';
-  const HUBSPOT_MEETINGS = 'https://meetings.hubspot.com/andrew-crutchley';
+    // CONFIG: set these to match your Apps Script + HubSpot meeting base
+    const SCRIPT_EXEC_URL = 'https://script.google.com/macros/s/AKfycby8Zv4WLTcElTcQjKHVcVORIQ8m5t5-5OXpJkxMuA0O6E8DCAV2iQIbqwHF6OwfvpFB/exec';
+    const HUBSPOT_MEETINGS_BASE = 'https://meetings.hubspot.com/andrew-crutchley';
 
-  // helper: read query param
-  function getParam(name){
-    try { return (new URL(location.href)).searchParams.get(name); } catch(e) { return null; }
-  }
-
-  // create a visible manual link under the progress area
-  (function addManualLink(){
-    const panel = document.querySelector('.panel');
-    if (!panel) return;
-    const container = document.createElement('div');
-    container.style.marginTop = '14px';
-    container.style.fontSize = '13px';
-    container.innerHTML = '<div style="color:#fff"><a id="manualLink" style="color:var(--gold); text-decoration:none; font-weight:600;" href="#">CLICK HERE TO BOOK NOW</a></div>';
-    panel.appendChild(container);
-    // click handler added below after prefill resolution
-  })();
-
-  // JSONP callback (Apps Script will call this)
-  window.__magna_prefill_cb = function(payload){
-    try {
-      if (payload && payload.prefillUrl) {
-        window.__magna_prefill_cb.prefillUrl = payload.prefillUrl;
-        console.log('Prefill URL received:', payload.prefillUrl);
-      } else {
-        console.log('No prefill URL returned for sid.');
-      }
-    } catch (e) { console.warn(e); }
-  };
-
-  (function(){
-    const total = 8;
-    let remaining = total;
-    const fill = document.getElementById('progressFill');
-    const text = document.getElementById('countdownText');
-    const sid = getParam('sid');
-    let prefillUrl = null;
-
-    // request prefill via JSONP if we have a sid
-    if (sid && SCRIPT_EXEC_URL){
-      try {
-        const script = document.createElement('script');
-        // JSONP call: Apps Script doGet supports callback param
-        script.src = SCRIPT_EXEC_URL + '?sid=' + encodeURIComponent(sid) + '&callback=__magna_prefill_cb';
-        script.onerror = function(){ console.warn('JSONP load error'); };
-        document.body.appendChild(script);
-        // small safety: after 1.2s try to pick up prefill if callback already fired
-        setTimeout(()=> { prefillUrl = window.__magna_prefill_cb && window.__magna_prefill_cb.prefillUrl; }, 1200);
-      } catch (e) {
-        console.warn('Prefill JSONP error', e);
-      }
+    function qs(name, url){
+      if(!url) url = window.location.href;
+      name = name.replace(/[\[\]]/g, "\\$&");
+      const regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)");
+      const results = regex.exec(url);
+      if(!results) return null;
+      if(!results[2]) return '';
+      return decodeURIComponent(results[2].replace(/\+/g, " "));
     }
 
-    // tick function
-    const tick = ()=>{
-      const pct = Math.round(((total - remaining) / total) * 100);
-      if (fill) fill.style.width = pct + '%';
-      if (text) text.innerHTML = 'Redirecting to book a time in <strong>' + remaining + '</strong> second' + (remaining === 1 ? '' : 's') + '…';
-      if (remaining <= 0){
-        if (fill) fill.style.width = '100%';
-        // final redirect: prefer prefillUrl if available (fresh check)
-        prefillUrl = prefillUrl || (window.__magna_prefill_cb && window.__magna_prefill_cb.prefillUrl) || null;
-        const target = prefillUrl || HUBSPOT_MEETINGS;
+    // parse querystring from an arbitrary URL -> object
+    function parseQS(url){
+      const q = {};
+      const idx = url.indexOf('?');
+      if(idx === -1) return q;
+      const parts = url.substring(idx+1).split('&');
+      parts.forEach(p=>{
+        const kv = p.split('=');
+        if(kv[0]) q[decodeURIComponent(kv[0])] = decodeURIComponent((kv[1]||''));
+      });
+      return q;
+    }
+
+    (function(){
+      const sid = qs('sid');
+      const fill = document.getElementById('progressFill');
+      const countNum = document.getElementById('countNum');
+      const countdownText = document.getElementById('countdownText');
+      const userInfo = document.getElementById('userInfo');
+      const manualLink = document.getElementById('manualLink');
+
+      let total = 8;
+      let remaining = total;
+
+      function finalRedirect(target){
+        // attempt top-level redirect
+        try { window.top.location.href = target; return; } catch(e){}
+        try { window.parent.location.href = target; return; } catch(e){}
         window.location.href = target;
+      }
+
+      function startCountdown(targetUrl){
+        manualLink.href = targetUrl;
+        manualLink.style.display = 'inline-block';
+        const tick = ()=>{
+          const pct = Math.round(((total - remaining) / total) * 100);
+          fill.style.width = pct + '%';
+          countNum.textContent = remaining;
+          countdownText.textContent = 'Redirecting to book a time in ' + remaining + (remaining===1 ? ' second…' : ' seconds…');
+          if(remaining <= 0){
+            fill.style.width = '100%';
+            finalRedirect(targetUrl);
+            return;
+          }
+          remaining--;
+          setTimeout(tick, 1000);
+        };
+        tick();
+      }
+
+      if(!sid){
+        // no sid — fallback to hubspot base after short pause
+        userInfo.textContent = '';
+        startCountdown(HUBSPOT_MEETINGS_BASE);
         return;
       }
-      remaining--;
-      setTimeout(tick, 1000);
-    };
 
-    // manual link click handler
-    const manualClick = (e)=>{
-      e && e.preventDefault();
-      // use prefill if present
-      const target = (window.__magna_prefill_cb && window.__magna_prefill_cb.prefillUrl) || HUBSPOT_MEETINGS;
-      window.location.href = target;
-    };
+      // fetch prefill mapping from Apps Script
+      fetch(SCRIPT_EXEC_URL + '?sid=' + encodeURIComponent(sid)).then(resp=>{
+        if(!resp.ok) throw new Error('Network response not OK: ' + resp.status);
+        return resp.json();
+      }).then(data=>{
+        let target = (data && data.prefillUrl) ? data.prefillUrl : HUBSPOT_MEETINGS_BASE;
+        // try to extract name/email from prefillUrl and show to user
+        try {
+          const qi = parseQS(target || '');
+          const pieces = [];
+          if(qi.firstname) pieces.push('First name: ' + qi.firstname);
+          if(qi.lastname) pieces.push('Last name: ' + qi.lastname);
+          if(qi.email) pieces.push('Email: ' + qi.email);
+          if(pieces.length) userInfo.innerHTML = pieces.join('<br>');
+        } catch(e){}
+        startCountdown(target);
+      }).catch(err=>{
+        console.warn('Could not fetch prefill mapping; falling back to meetings base', err);
+        startCountdown(HUBSPOT_MEETINGS_BASE);
+      });
 
-    // attach manual handler
-    const manualEl = document.getElementById('manualLink');
-    if (manualEl) manualEl.addEventListener('click', manualClick);
-    // also keep body click-to-skip behaviour
-    document.body.addEventListener('click', ()=> {
-      const target = (window.__magna_prefill_cb && window.__magna_prefill_cb.prefillUrl) || HUBSPOT_MEETINGS;
-      window.location.href = target;
-    });
-
-    // start countdown
-    tick();
-  })();
+      // allow click anywhere to go now
+      document.body.addEventListener('click', ()=> {
+        // if manualLink has a URL, go there now
+        if(manualLink && manualLink.href && manualLink.href !== '#') finalRedirect(manualLink.href);
+      });
+    })();
   </script>
 </body>
 </html>
