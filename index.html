@@ -96,12 +96,8 @@
       <div class="intro">Please complete this short enquiry form so we can prepare for your consultation. This helps us tailor our advice and identify the best funding options for your business.</div>
     </div>
     
-<form id="magnaForm" name="Magna Enquiry" method="POST" 
+<form id="magnaForm" name="Magna Enquiry" method="POST" novalidate autocomplete="on">
 
-action="https://a5beb07b967ee0f98c4641ba4d14e5.ad.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2aa4       7a9144a6498f9327da6367eed5bd/triggers/manual/paths/invoke?api-version=1"
-        target="magnaTarget" novalidate autocomplete="on">
-
-        <input type="hidden" name="redirect" value="https://magna-money-enquiry-form.vercel.app/thank-you.html">
         <!-- SECTION 1 -->
         <h3 class="section">Section 1: Business &amp; Contact Details</h3>
         <div class="field">
@@ -138,7 +134,6 @@ action="https://a5beb07b967ee0f98c4641ba4d14e5.ad.environment.api.powerplatform.
         </div>
 
         <hr style="border:none;border-top:1px solid rgba(255,255,255,0.04);margin:12px 0">
-
         <!-- SECTION 2 -->
         <h3 class="section">Section 2: Your Business Finance Requirements</h3>
 
@@ -320,7 +315,6 @@ action="https://a5beb07b967ee0f98c4641ba4d14e5.ad.environment.api.powerplatform.
         </div>
 
         <hr style="border:none;border-top:1px solid rgba(255,255,255,0.04);margin:12px 0">
-
         <!-- SECTION 5 -->
         <h3 class="section">Section 5: Assets &amp; Credit</h3>
         <div class="field">
@@ -396,105 +390,31 @@ action="https://a5beb07b967ee0f98c4641ba4d14e5.ad.environment.api.powerplatform.
 
  <!-- hidden target for form submits (required) -->
   <iframe name="magnaTarget" style="display:none" aria-hidden="true"></iframe>
+  <!-- Your explicit submit script goes here -->
+<script>
+document.getElementById('magnaForm').addEventListener('submit', function(e) {
+  e.preventDefault();
 
-  <script>
-    /* ---------------- existing UI logic & validation (unchanged) ---------------- */
-    function toggleOnRadio(name, blockId, showValues){
-      document.querySelectorAll('input[name="'+name+'"]').forEach(el=>{
-        el.addEventListener('change', e=>{
-          const block = document.getElementById(blockId);
-          if(!block) return;
-          const shouldShow = showValues ? showValues.includes(e.target.value) : (e.target.value === 'Yes');
-          block.classList.toggle('hidden', !shouldShow);
-        });
-      });
-    }
-    toggleOnRadio('Know Last Turnover','lastTurnoverBlock',['Yes','Unsure']);
-    toggleOnRadio('Profit Last Year','profitAmountBlock',['Yes']);
-    toggleOnRadio('Know Current Turnover','currentTurnoverBlock',['Yes','Unsure']);
-    toggleOnRadio('Homeowner','homeownerBlock',['Yes']);
-    toggleOnRadio('HomeMortgage','mortgageDetails',['Yes']);
-    toggleOnRadio('OtherAssets','otherAssetsBlock',['Yes']);
-    toggleOnRadio('CreditIssues','creditIssuesBlock',['Yes']);
+  const formData = new FormData(this);
+  const payload = Object.fromEntries(formData);
 
-    function bindCheckboxReveal(checkboxId, blockId){
-      const cb = document.getElementById(checkboxId);
-      const blk = document.getElementById(blockId);
-      if(!cb || !blk) return;
-      const update = ()=> blk.classList.toggle('hidden', !cb.checked);
-      cb.addEventListener('change', update);
-      update();
-    }
-    bindCheckboxReveal('financeOtherChk','financeOtherBlock');
-    bindCheckboxReveal('termOtherChk','termOtherBlock');
-
-    /* ---------- submit handler: validation + iframe submit + immediate redirect ---------- */
-    document.getElementById('magnaForm').addEventListener('submit', function(e){
-      const financeErr = document.getElementById('financeTypeError');
-      const termErr = document.getElementById('termError');
-      if (financeErr) financeErr.classList.add('hidden');
-      if (termErr) termErr.classList.add('hidden');
-
-      const financeChecked = Array.from(document.querySelectorAll('input[name="Type of Finance"]')).some(i=>i.checked);
-      const termChecked = Array.from(document.querySelectorAll('input[name="Length of Term"]')).some(i=>i.checked);
-
-      let block = false;
-      if(!financeChecked){ if (financeErr) financeErr.classList.remove('hidden'); block = true; }
-      if(!termChecked){ if (termErr) termErr.classList.remove('hidden'); block = true; }
-
-      if(block){
-        e.preventDefault();
-        if(!financeChecked){
-          const el = document.querySelector('input[name="Type of Finance"]');
-          if(el) el.focus();
-        } else {
-          const el = document.querySelector('input[name="Length of Term"]');
-          if(el) el.focus();
-        }
-        return;
-      }
-
-      // If we get here: form is valid. We let the form submit to the hidden iframe (target="magnaTarget")
-      // and we immediately (after a short delay) redirect the main window to the thank-you page,
-      // passing firstname, lastname and email in the query string from the Contact Name + Email fields.
-      // This ensures Apps Script receives the POST (in the hidden iframe) while the user moves on.
-
-      try {
-        // Pull name/email from the visible fields (no changes to your field names)
-        var contactName = (document.getElementById('contactName') && document.getElementById('contactName').value) || '';
-        var emailVal = (document.getElementById('email') && document.getElementById('email').value) || '';
-
-        // Basic split of contact name into first/last (first token -> firstname, remainder -> lastname)
-        var firstName = '';
-        var lastName = '';
-        var nameParts = contactName.trim().split(/\s+/);
-        if (nameParts.length === 1) {
-          firstName = nameParts[0];
-        } else if (nameParts.length > 1) {
-          firstName = nameParts.shift();
-          lastName = nameParts.join(' ');
-        }
-
-        // thank-you page URL (repo1)
-        var THANKYOU = 'https://magna-money-enquiry-form.vercel.app/thank-you.html';
-        // build query string - encode values
-        var qs = [];
-        if (firstName) qs.push('firstname=' + encodeURIComponent(firstName));
-        if (lastName) qs.push('lastname=' + encodeURIComponent(lastName));
-        if (emailVal) qs.push('email=' + encodeURIComponent(emailVal));
-        var redirectUrl = THANKYOU + (qs.length ? ('?' + qs.join('&')) : '');
-
-        // short delay to let browser send the POST to the hidden iframe; then navigate main window
-        setTimeout(function(){
-          window.location.href = redirectUrl;
-        }, 350);
-
-        // allow default submit to proceed (target is hidden iframe)
-      } catch (err) {
-        // if anything goes wrong, still allow default submit to proceed; fallback to server-side redirect
-        console.warn('Redirect helper failed, proceeding with default submit: ', err);
-      }
-    });
-  </script>
+  // Send to Power Automate first
+  fetch("https://a5beb07b967ee0f98c4641ba4d14e5.ad.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/0ad453b150844e9ba7994f1e393ec754/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zRSLMuFJXsO_3tKtH5VLfiEWA8OLh2JXpixEF24BLZs", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  }).then(() => {
+    // Wait 800ms, then redirect to thank-you
+    setTimeout(() => {
+      window.location.href = 'https://magna-money-enquiry-form.vercel.app/thank-you.html';
+    }, 800);
+  }).catch(err => {
+    console.warn('Webhook error: ', err);
+  });
+});
+</script>
+    
 </body>
 </html>
