@@ -390,15 +390,27 @@
 
  <!-- hidden target for form submits (required) -->
   <iframe name="magnaTarget" style="display:none" aria-hidden="true"></iframe>
-  <!-- Your explicit submit script goes here -->
+  
+    <!-- Your explicit submit script goes here -->
 <script>
 document.getElementById('magnaForm').addEventListener('submit', function(e) {
   e.preventDefault();
 
   const formData = new FormData(this);
-  const payload = Object.fromEntries(formData);
+  const payload = {};
 
-  // Send to Power Automate first
+  for (const [key, value] of formData.entries()) {
+    if (payload[key]) {
+      if (Array.isArray(payload[key])) {
+        payload[key].push(value);
+      } else {
+        payload[key] = [payload[key], value];
+      }
+    } else {
+      payload[key] = value;
+    }
+  }
+
   fetch("https://a5beb07b967ee0f98c4641ba4d14e5.ad.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/0ad453b150844e9ba7994f1e393ec754/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zRSLMuFJXsO_3tKtH5VLfiEWA8OLh2JXpixEF24BLZs", {
     method: "POST",
     headers: {
@@ -406,7 +418,6 @@ document.getElementById('magnaForm').addEventListener('submit', function(e) {
     },
     body: JSON.stringify(payload)
   }).then(() => {
-    // Wait 800ms, then redirect to thank-you
     setTimeout(() => {
       window.location.href = 'https://magna-money-enquiry-form.vercel.app/thank-you.html';
     }, 800);
@@ -415,6 +426,7 @@ document.getElementById('magnaForm').addEventListener('submit', function(e) {
   });
 });
 </script>
+
     
 </body>
 </html>
