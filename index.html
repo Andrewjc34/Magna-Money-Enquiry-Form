@@ -84,22 +84,24 @@
 <body>
   <div class="container" role="main">
 
-<!-- ===== Matched Header ===== -->
-<div class="header-block" aria-hidden="false">
-  <div class="logo-wrap">
-    <div class="crown-logo" aria-hidden="true"></div>
-    <div class="brand-name">MAGNAMONEY</div>
-    <div class="brand-tag">The Commercial Finance Boutique – Bespoke, Collaborative &amp; Expert Funding Advisory</div>
-  </div>
-  <div class="doc-title">Commercial Finance Enquiry Form</div>
-  <div class="website-line">www.magnamoney.co.uk</div>
-  <div class="intro">Please complete this short enquiry form so we can prepare for your consultation. This helps us tailor our advice and identify the best funding options for your business.</div>
-</div>
+    <!-- ===== Matched Header ===== -->
+    <div class="header-block" aria-hidden="false">
+      <div class="logo-wrap">
+        <div class="crown-logo" aria-hidden="true"></div>
+        <div class="brand-name">MAGNAMONEY</div>
+        <div class="brand-tag">The Commercial Finance Boutique – Bespoke, Collaborative &amp; Expert Funding Advisory</div>
+      </div>
+      <div class="doc-title">Commercial Finance Enquiry Form</div>
+      <div class="website-line">www.magnamoney.co.uk</div>
+      <div class="intro">Please complete this short enquiry form so we can prepare for your consultation. This helps us tailor our advice and identify the best funding options for your business.</div>
+    </div>
+    
+<form id="magnaForm" name="Magna Enquiry" method="POST" 
 
-<div class="form-panel">
-  <form id="magnaForm" name="Magna Enquiry" onsubmit="handleSubmit(event)" novalidate autocomplete="on">
+action="https://a5beb07b967ee0f98c4641ba4d14e5.ad.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2aa4       7a9144a6498f9327da6367eed5bd/triggers/manual/paths/invoke?api-version=1"
+        target="magnaTarget" novalidate autocomplete="on">
 
-
+        <input type="hidden" name="redirect" value="https://magna-money-enquiry-form.vercel.app/thank-you.html">
         <!-- SECTION 1 -->
         <h3 class="section">Section 1: Business &amp; Contact Details</h3>
         <div class="field">
@@ -392,6 +394,9 @@
     </div> <!-- end form-panel -->
   </div> <!-- end container -->
 
+ <!-- hidden target for form submits (required) -->
+  <iframe name="magnaTarget" style="display:none" aria-hidden="true"></iframe>
+
   <script>
     /* ---------------- existing UI logic & validation (unchanged) ---------------- */
     function toggleOnRadio(name, blockId, showValues){
@@ -424,59 +429,76 @@
     bindCheckboxReveal('termOtherChk','termOtherBlock');
 
     /* ---------- submit handler: validation + iframe submit + immediate redirect ---------- */
-async function handleSubmit(event) {
-  event.preventDefault();
+    document.getElementById('magnaForm').addEventListener('submit', function(e){
+      const financeErr = document.getElementById('financeTypeError');
+      const termErr = document.getElementById('termError');
+      if (financeErr) financeErr.classList.add('hidden');
+      if (termErr) termErr.classList.add('hidden');
 
-  const form = document.getElementById('magnaForm');
-  const formData = new FormData(form);
-  const data = {};
+      const financeChecked = Array.from(document.querySelectorAll('input[name="Type of Finance"]')).some(i=>i.checked);
+      const termChecked = Array.from(document.querySelectorAll('input[name="Length of Term"]')).some(i=>i.checked);
 
-  // Handle checkboxes for FinanceTypes
-  data['FinanceTypes'] = [];
-  document.querySelectorAll('input[name="Type of Finance"]:checked').forEach(el => {
-    data['FinanceTypes'].push(el.value);
-  });
+      let block = false;
+      if(!financeChecked){ if (financeErr) financeErr.classList.remove('hidden'); block = true; }
+      if(!termChecked){ if (termErr) termErr.classList.remove('hidden'); block = true; }
 
-  // Handle checkboxes for Terms
-  data['Terms'] = [];
-  document.querySelectorAll('input[name="Length of Term"]:checked').forEach(el => {
-    data['Terms'].push(el.value);
-  });
+      if(block){
+        e.preventDefault();
+        if(!financeChecked){
+          const el = document.querySelector('input[name="Type of Finance"]');
+          if(el) el.focus();
+        } else {
+          const el = document.querySelector('input[name="Length of Term"]');
+          if(el) el.focus();
+        }
+        return;
+      }
 
-  // Handle all other fields
-  formData.forEach((value, key) => {
-    if (key === 'Type of Finance' || key === 'Length of Term') return; // already handled above
-    if (key === 'MarketingConsent') {
-      data[key] = form.querySelector('#marketingConsent').checked;
-    } else {
-      data[key.replace(/\s+/g, '')] = value;
-    }
-  });
+      // If we get here: form is valid. We let the form submit to the hidden iframe (target="magnaTarget")
+      // and we immediately (after a short delay) redirect the main window to the thank-you page,
+      // passing firstname, lastname and email in the query string from the Contact Name + Email fields.
+      // This ensures Apps Script receives the POST (in the hidden iframe) while the user moves on.
 
-const FLOW_URL = "https://a5beb07b967ee0f98c4641ba4d14e5.ad.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/298b489339474c38988fa6eef5ad6625/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=goNeOyrJJwKTMPuOCtLZfeUP9iXPrF1k6heEKTFE-sQ";
+      try {
+        // Pull name/email from the visible fields (no changes to your field names)
+        var contactName = (document.getElementById('contactName') && document.getElementById('contactName').value) || '';
+        var emailVal = (document.getElementById('email') && document.getElementById('email').value) || '';
 
-  const THANKYOU_URL = "https://magna-money-enquiry-form.vercel.app/thank-you.html";
+        // Basic split of contact name into first/last (first token -> firstname, remainder -> lastname)
+        var firstName = '';
+        var lastName = '';
+        var nameParts = contactName.trim().split(/\s+/);
+        if (nameParts.length === 1) {
+          firstName = nameParts[0];
+        } else if (nameParts.length > 1) {
+          firstName = nameParts.shift();
+          lastName = nameParts.join(' ');
+        }
 
-  try {
-    await fetch(FLOW_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(data)
-    });
+        // thank-you page URL (repo1)
+        var THANKYOU = 'https://magna-money-enquiry-form.vercel.app/thank-you.html';
+        // build query string - encode values
+        var qs = [];
+        if (firstName) qs.push('firstname=' + encodeURIComponent(firstName));
+        if (lastName) qs.push('lastname=' + encodeURIComponent(lastName));
+        if (emailVal) qs.push('email=' + encodeURIComponent(emailVal));
+        var redirectUrl = THANKYOU + (qs.length ? ('?' + qs.join('&')) : '');
 
-    // Wait 800ms, then redirect
-    setTimeout(() => {
-      window.location.href = THANKYOU_URL;
-    }, 800);
-  } catch (err) {
-    console.error("Error submitting to Power Automate", err);
-    window.location.href = THANKYOU_URL; // fallback redirect
-  }
-}
-<!-- Start of HubSpot Embed Code -->
-<script type="text/javascript" id="hs-script-loader" async defer src="//js.hs-scripts.com/8402236.js"></script>
-<!-- End of HubSpot Embed Code -->
+        // short delay to let browser send the POST to the hidden iframe; then navigate main window
+        setTimeout(function(){
+          window.location.href = redirectUrl;
+        }, 350);
+
+        // allow default submit to proceed (target is hidden iframe)
+      } catch (err) {
+        // if anything goes wrong, still allow default submit to proceed; fallback to server-side redirect
+        console.warn('Redirect helper failed, proceeding with default submit: ', err);
+      }
+    });  // This closes your document.getElementById('magnaForm').addEventListener
+  </script>  <!-- This closes your main script tag -->
+
+  <!-- Start of HubSpot Embed Code -->
+  <script type="text/javascript" id="hs-script-loader" async defer src="//js.hs-scripts.com/8402236.js"></script>
+  <!-- End of HubSpot Embed Code -->
 </body>
 </html>
